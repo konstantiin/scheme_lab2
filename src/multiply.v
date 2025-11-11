@@ -56,7 +56,7 @@ module mult (input clk_i,
                     // Check for completion or early exit
                     if (end_step || early_exit) begin
                         state <= IDLE;
-                        y_bo  <= part_res;
+                        y_bo  <= part_res + shifted_part_sum;
                     end else begin
                         // Accumulate partial result
                         part_res <= part_res + shifted_part_sum;

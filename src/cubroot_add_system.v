@@ -6,25 +6,24 @@ module cubroot_add_system (
     input start_i,
     input [7:0] a_bi,
     input [7:0] b_bi,
-    output [15:0] result,
-    output done
+    output busy_o,
+    output reg [15:0] result
 );
 
-    wire sqrt_busy, mult_busy;
-    wire sqrt_start, mult_start;
-    wire [7:0] sqrt_result;
+    wire cub_busy, square_busy;
+    wire square_start, cub_start;
+    wire [7:0] cub_result;
+    wire [15:0] square_result;
     
-    localparam [1:0] 
-        IDLE = 2'b00,
-        CALC_SQRT = 2'b01,
-        CALC_MULT = 2'b10,
-        DONE_STATE = 2'b11;
+    localparam
+        IDLE = 1'b0,
+        WORKING = 1'b1;
     
-    reg [1:0] state;
+    reg state;
     
-    assign sqrt_start = (state == IDLE) && start_i;
-    assign mult_start = (state == CALC_SQRT) && !sqrt_busy;
-    assign done = (state == DONE_STATE);
+    assign square_start = (state == IDLE) && start_i;
+    assign cub_start = square_start;
+    assign busy_o = state;
     
     always @(posedge clk_i or posedge rst_i) begin
         if (rst_i) begin
@@ -33,46 +32,38 @@ module cubroot_add_system (
             case (state)
                 IDLE: begin
                     if (start_i) begin
-                        state <= CALC_SQRT;
+                        state <= WORKING;
                     end
                 end
                 
-                CALC_SQRT: begin
-                    if (!sqrt_busy) begin
-                        state <= CALC_MULT;
+                WORKING: begin
+                    if (!square_busy && !cub_busy) begin
+                        state <= IDLE;
+                        result <= square_result + cub_result;
                     end
                 end
                 
-                CALC_MULT: begin
-                    if (!mult_busy) begin
-                        state <= DONE_STATE;
-                    end
-                end
-                
-                DONE_STATE: begin
-                    state <= IDLE;
-                end
             endcase
         end
     end
     
-    cubroot sqrt_inst (
+    cubroot cub (
         .clk_i(clk_i),
         .rst_i(rst_i),
         .x_bi(b_bi),       
-        .start_i(sqrt_start),
-        .busy_o(sqrt_busy),
-        .y_bo(sqrt_result)
+        .start_i(cub_start),
+        .busy_o(cub_busy),
+        .y_bo(cub_result)
     );
     
-    mult mult_inst (
+    mult square (
         .clk_i(clk_i),
         .rst_i(rst_i),
         .a_bi(a_bi),       
-        .b_bi(sqrt_result), 
-        .start_i(mult_start),
-        .busy_o(mult_busy),
-        .y_bo(result)       
+        .b_bi(a_bi), 
+        .start_i(square_start),
+        .busy_o(square_busy),
+        .y_bo(square_result)       
     );
 
 endmodule
