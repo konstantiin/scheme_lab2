@@ -10,26 +10,35 @@ module cubroot (
 );
 
     // FSM states
-    localparam IDLE = 1'b0;
-    localparam WORK = 1'b1;
+    localparam IDLE = 4'd0;
+    localparam S1 = 4'd1;
+    localparam S2 = 4'd2;
+    localparam S3 = 4'd3;
+    localparam S4 = 4'd4;
+    localparam S5 = 4'd5;
+    localparam S6 = 4'd6;
+    localparam S7 = 4'd7;
+    localparam NEXT_ITER = 4'd8;
 
-    // Internal state and registers
-    reg state;
-    reg [7:0] x;        // Current working value
-    reg [7:0] y;        // Result accumulator
-    reg [7:0] m;        // Bit mask
-    reg [7:0] b_temp;   // Temporary for b = y | m
-    reg [7:0] y_temp;   // Temporary for y_shifted
-    
-    // Combinational signals for cleaner code
-    wire [7:0] m_shifted;
-    wire m_not_zero;
-    
-    // Combinational logic
-    assign m_shifted = m >> 2;
-    assign m_not_zero = (m != 8'd0);
-    assign busy_o = state;
-
+    reg [3:0] state;
+    reg [7:0] x;
+    reg [7:0] y;
+    reg [2:0] s; // (9-0)
+    reg [7:0] b; // hope it will not overlflow
+    assign busy_o = (state != IDLE);
+    wire start_mul;
+    assign start_mul = (state == S2);
+    wire busy_mul;
+    wire [15:0] mul_res;
+    mult mul (
+        .clk_i(clk_i),
+        .rst_i(rst_i),
+        .a_bi(y),       
+        .b_bi(b), 
+        .start_i(start_mul),
+        .busy_o(busy_mul),
+        .y_bo(mul_res)       
+    );
     // Main sequential logic with improved structure
     always @(posedge clk_i) begin
         if (rst_i) begin
@@ -37,48 +46,66 @@ module cubroot (
             state <= IDLE;
             x <= 8'd0;
             y <= 8'd0;
-            m <= 8'd0;
+            s <= 3'd6;
             y_bo <= 8'd0;
-            b_temp <= 8'd0;
-            y_temp <= 8'd0;
+            b <= 8'd0;
         end else begin
             case (state)
                 IDLE: begin
                     if (start_i) begin
                         // Initialize for square root calculation
-                        state <= WORK;
+                        state <= S1;
                         x <= x_bi;
                         y <= 8'd0;
-                        m <= 8'b01000000;   // Initial mask: 1 << (WIDTH-2)
-                        y_bo <= 8'd0;
+                        s <= 3'd6;
+                        b <= 8'd0;
                     end
                 end
                 
-                WORK: begin
-                    if (m_not_zero) begin
-                        // Calculate temporary values using blocking for immediate computation
-                        b_temp = y | m;
-                        y_temp = y >> 1;
-                        
-                        // Conditionally update based on comparison
-                        if (x >= b_temp) begin
-                            // If x >= b_temp, subtract and set bit in result
-                            x <= x - b_temp;
-                            y <= y_temp | m;
-                        end else begin
-                            // Only update y with shifted value
-                            y <= y_temp;
-                        end
-                        
-                        // Shift mask for next iteration
-                        m <= m_shifted;
+                S1: begin
+                    y <= (y << 1); // y * 2
+                    b <= ((y << 1) + 1);
+                    state <= S2;
+                end
+                S2: begin
+                    // do nothing, b * y mul started
+                    state <= S3;
+                end
+                S3: begin
+                    if (!busy_mul) begin
+                        state <= S4;
+                        b <= mul_res + (mul_res << 1); // * 3
+                    end
+                end
+                S4: begin
+                    state <= S5;
+                    b <= ((b + 1) << s);
+                end
+                S5: begin
+                    if (x >= b)begin
+                        state <= S6;
                     end else begin
-                        // Computation complete, output final result
-                        state <= IDLE;
-                        y_bo <= y;
+                        state <= NEXT_ITER;
                     end
                 end
+                S6: begin
+                    x <= x - b;
+                    state <= S7;
+                end
                 
+                S7: begin
+                    y <= y+1;
+                    state <= NEXT_ITER;
+                end
+                NEXT_ITER: begin
+                    if (s == 0) begin
+                        y_bo <= y;
+                        state <= IDLE;
+                    end else begin
+                        s <= s - 3;
+                        state <= S1;
+                    end
+                end
                 default: begin
                     state <= IDLE;
                 end

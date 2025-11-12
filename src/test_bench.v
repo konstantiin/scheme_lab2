@@ -26,12 +26,7 @@ module test_bench;
     // Statistics counters
     integer total_sqrt_cycles = 0;
     integer total_mult_cycles = 0;
-    integer total_system_cycles = 0;
     integer test_count = 0;
-    integer min_sqrt_cycles = 9999;
-    integer max_sqrt_cycles = 0;
-    integer min_mult_cycles = 9999;
-    integer max_mult_cycles = 0;
 
     initial begin
         $dumpfile("wave.vcd");
@@ -47,16 +42,20 @@ module test_bench;
         rst_i = 0;
         @(posedge clk);
 
-        test(8'd4,   8'd16,  16'd20,  1);   // 4^2 + sqrt(16) = 20
-        test(8'd5,   8'd25,  16'd30,  2);   // 5^2 + sqrt(25) = 30
-        test(8'd3,   8'd2,   16'd10,   3);   // 3^2 + sqrt(2) = 10
-        test(8'd0,   8'd100, 16'd10,   4);   // 0^2 + sqrt(100) = 10
-        test(8'd8,   8'd0,   16'd64,   5);   // 8^2 + sqrt(0) = 64
-        test(8'd1,   8'd1,   16'd2,   6);   // 1^2 + sqrt(1) = 2
-        test(8'd255, 8'd255, 16'd65040,7);   // 255^2 + sqrt(255) = 65040
-        test(8'd100, 8'd4,   16'd10002, 8);   // 100^2 + sqrt(4) = 10002
-        test(8'd2,   8'd225, 16'd19,  9);   // 2^2 + sqrt(225) = 19
-        test(8'd6,   8'd64,  16'd44,  10);  // 6^2 + sqrt(64) = 44
+        test(8'd0,   8'd27,  16'd3,  1);   // 0^2 + cubr(27) = 3
+        test(8'd0,   8'd26,  16'd2,  2);   // 0^2 + cubr(26) = 2
+        test(8'd0,   8'd9,  16'd2,  3);   // 0^2 + cubr(9) = 2
+        test(8'd0,   8'd8,  16'd2,  4);   // 0^2 + cubr(8) = 2
+        test(8'd0,   8'd7,  16'd1,  5);   // 0^2 + cubr(7) = 1
+        test(8'd0,   8'd1,  16'd1,  6);   // 0^2 + cubr(1) = 1
+        test(8'd0,   8'd255,  16'd6,  7);   // 0^2 + cubr(1) = 1
+        test(8'd4,   8'd16,  16'd18,  8);   // 4^2 + sqrt(16) = 18
+        test(8'd5,   8'd25,  16'd27,  9);   // 5^2 + sqrt(25) = 27
+        test(8'd3,   8'd2,   16'd10,   10);   // 3^2 + sqrt(2) = 10
+        test(8'd8,   8'd0,   16'd64,   11);   // 8^2 + sqrt(0) = 64
+        test(8'd1,   8'd1,   16'd2,   12);   // 1^2 + sqrt(1) = 2
+        test(8'd255, 8'd255, 16'd65031, 13);   // 255^2 + sqrt(255) = 650310
+        test(8'd100, 8'd10,   16'd10002, 14);   // 100^2 + sqrt(4) = 10002
 
 
         #10 $finish;
@@ -98,7 +97,7 @@ module test_bench;
                 test_count = test_count + 1;
                 
                 
-                $display("Test %2d: %3d + √%-3d = %-5d (exp %-5d) | TIME: %2d cyc (%5.1f ns)", 
+                $display("Test %2d: %3d^2 + cubroot(%-3d) = %-5d (exp %-5d) | TIME: %2d cyc (%5.1f ns)", 
                          num, a, b, result, expected, 
                          total_cycles, total_time_ns);
             end else begin
